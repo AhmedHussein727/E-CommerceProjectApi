@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 using ECommerce.Domain.Contracts;
 using ECommerce.Domain.Entities;
 using ECommerce.Persistence.Data.DbContexts;

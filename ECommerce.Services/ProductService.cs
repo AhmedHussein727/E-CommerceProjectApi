@@ -38,7 +38,7 @@ namespace ECommerce.Services
         )
         {
             var repo = _unitOfWork.GetRepository<Product, int>();
-            //GetAllProductsWithBrandsAndTypes
+            //GetAllProductsWithBrandsAndTypes 
             var spec = new ProductWithTypeAndBrandSpecification(queryParams);
             var products = await repo.GetAllAsync(spec);
 

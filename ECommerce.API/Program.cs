@@ -34,9 +34,9 @@ namespace ECommerce.API
             // Add services to the container.
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+            
             builder.Services.AddEndpointsApiExplorer();
-            builder.Configuration.AddEnvironmentVariables();
+            //builder.Configuration.AddEnvironmentVariables();
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "ECommerce.API", Version = "v1" });
@@ -165,11 +165,20 @@ namespace ECommerce.API
 
             var app = builder.Build();
 
-            await app.MigrateDataBaseAsync();
-            await app.MigratIdentityeDataBaseAsync();
+            
 
-            await app.SeedDataAsync();
-            await app.SeedIdentityDataAsync();
+            
+
+            if (app.Environment.IsDevelopment())
+            {
+                await app.MigrateDataBaseAsync();
+                await app.SeedDataAsync();
+                await app.SeedIdentityDataAsync();
+            }
+
+
+            
+            
 
             #region Configure PipeLine [Middlewares]
             #region Custom Middleware
@@ -211,6 +220,13 @@ namespace ECommerce.API
                     options.DocExpansion(DocExpansion.None);
                 });
             }
+            //#region Test
+            //Console.WriteLine("JWT: " + builder.Configuration["JWTOptions:SecretKey"]);
+            //Console.WriteLine("Stripe Secret: " + builder.Configuration["Stripe:SecretKey"]);
+            //Console.WriteLine("Stripe Endpoint: " + builder.Configuration["Stripe:EndpointSecret"]);
+            //Console.WriteLine("JWT: " + builder.Configuration["JWTOptions:SecretKey"]);
+            //Console.WriteLine("ENV: " + builder.Environment.EnvironmentName);
+            //#endregion
 
             app.UseStaticFiles();
             app.UseHttpsRedirection();

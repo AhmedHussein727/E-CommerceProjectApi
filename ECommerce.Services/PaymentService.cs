@@ -41,7 +41,7 @@ namespace ECommerce.Services
 
         public async Task<Result<BasketDTO>> CreateOrUpdatePaymentIntentAsync(string basketId)
         {
-            var skey = _configuration["Stripe:Skey"];
+            var skey = _configuration["Stripe:SecretKey"]; 
             if (skey is null)
                 return Error.Faliure("Failed to obtain Secret Ket Value");
             StripeConfiguration.ApiKey = skey;
@@ -122,36 +122,65 @@ namespace ECommerce.Services
         public async Task UpdateOrderPaymentStatus(string request, string stripeSignature)
         {
             var endPointSecret = _configuration["Stripe:EndpointSecret"];
+
             var stripeEvent = EventUtility.ConstructEvent(
                 request,
                 stripeSignature,
                 endPointSecret,
                 throwOnApiVersionMismatch: false
-                        );
+            );
 
-            // Handle the event
-            var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
-            var order = await _unitOfWork
-                .GetRepository<Order, Guid>()
-                .GetByIdAsync(new OrderWithPaymentIntentSpecifications(paymentIntent!.Id));
-            if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
+            switch (stripeEvent.Type)
             {
-                order.Status = OrderStatus.PaymentReceived;
+                case EventTypes.PaymentIntentSucceeded:
+                    {
+                        var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
 
-                _unitOfWork.GetRepository<Order, Guid>().Update(order);
+                        if (paymentIntent == null)
+                            throw new Exception("PaymentIntent is null");
 
-                await _unitOfWork.SaveChangesAsync();
-            }
-            else if (stripeEvent.Type == EventTypes.PaymentIntentPaymentFailed)
-            {
-                order.Status = OrderStatus.PaymentFailed;
-                _unitOfWork.GetRepository<Order, Guid>().Update(order);
-                await _unitOfWork.SaveChangesAsync();
-            }
-            
-            else
-            {
-                Console.WriteLine("Unhandled event type: {0}", stripeEvent.Type);
+                        var order = await _unitOfWork
+                            .GetRepository<Order, Guid>()
+                            .GetByIdAsync(new OrderWithPaymentIntentSpecifications(paymentIntent.Id));
+
+                        if (order == null)
+                            throw new Exception("Order not found");
+
+                        order.Status = OrderStatus.PaymentReceived;
+
+                        _unitOfWork.GetRepository<Order, Guid>().Update(order);
+                        await _unitOfWork.SaveChangesAsync();
+
+                        break;
+                    }
+
+                case EventTypes.PaymentIntentPaymentFailed:
+                    {
+                        var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
+
+                        if (paymentIntent == null)
+                            throw new Exception("PaymentIntent is null");
+
+                        var order = await _unitOfWork
+                            .GetRepository<Order, Guid>()
+                            .GetByIdAsync(new OrderWithPaymentIntentSpecifications(paymentIntent.Id));
+
+                        if (order == null)
+                            throw new Exception("Order not found");
+
+                        order.Status = OrderStatus.PaymentFailed;
+
+                        _unitOfWork.GetRepository<Order, Guid>().Update(order);
+                        await _unitOfWork.SaveChangesAsync();
+
+                        break;
+                    }
+
+                default:
+                    {
+                        Console.WriteLine($"Unhandled event type: {stripeEvent.Type}");
+                        break;
+                    }
             }
         }
     }
