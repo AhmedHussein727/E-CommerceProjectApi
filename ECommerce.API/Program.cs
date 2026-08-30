@@ -13,6 +13,7 @@ using ECommerce.Services;
 using ECommerce.Services.Abstraction;
 using ECommerce.Services.MappingProfiles;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -116,11 +117,26 @@ namespace ECommerce.API
             builder.Services.AddKeyedScoped<IDataIntializer, DataIntializer>("Default");
             builder.Services.AddKeyedScoped<IDataIntializer, IdentityDataIntializer>("Identity");
 
+            builder.Services.AddHttpContextAccessor();
+
+            //Behind a reverse proxy / load balancer the app otherwise sees http and the
+            //original client host is lost, which breaks HTTPS redirection and generated URLs.
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders =
+                    ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
+
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             //AutoMapper 15+ takes a configuration action instead of a bare assembly list.
-            builder.Services.AddAutoMapper(cfg =>
-                cfg.AddMaps(typeof(ServiceAssemblyReference).Assembly)
+            //The assembly argument still matters: it is what registers IValueResolver
+            //implementations in DI so they can take constructor dependencies.
+            builder.Services.AddAutoMapper(
+                cfg => cfg.AddMaps(typeof(ServiceAssemblyReference).Assembly),
+                typeof(ServiceAssemblyReference).Assembly
             );
 
             builder.Services.AddScoped<IProductService, ProductService>();
@@ -261,6 +277,8 @@ namespace ECommerce.API
             //);
             #endregion
 
+
+            app.UseForwardedHeaders();
 
             app.UseMiddleware<ExceptionHandlerMiddleware>();
             if (app.Environment.IsDevelopment())

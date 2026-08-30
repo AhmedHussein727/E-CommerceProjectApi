@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Presentation.Attributes
 {
@@ -28,10 +29,26 @@ namespace ECommerce.Presentation.Attributes
             //Get CacheService from DI Container
             var cacheService =
                 context.HttpContext.RequestServices.GetRequiredService<ICacheService>();
+            var logger = context
+                .HttpContext.RequestServices.GetRequiredService<
+                    ILoggerFactory
+                >()
+                .CreateLogger<RedisCacheAttribute>();
+
             //Create CacheKey Based On RequestPath & QueryParams
             var cacheKey = CreateCacheKey(context.HttpContext.Request);
-            //Check if Data Exists in Cache
-            var cacheValue = await cacheService.GetAsync(cacheKey);
+
+            //The cache is an optimisation, not a dependency. If Redis is unreachable the
+            //endpoint must still serve from the database instead of failing the request.
+            string? cacheValue = null;
+            try
+            {
+                cacheValue = await cacheService.GetAsync(cacheKey);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Cache read failed for {CacheKey}; serving uncached", cacheKey);
+            }
 
             //If Exists,Return Cached Data and skip executing endpoint
             if (cacheValue is not null)
@@ -51,11 +68,18 @@ namespace ECommerce.Presentation.Attributes
 
             if (ExecutedContext.Result is OkObjectResult result)
             {
-                await cacheService.SetAsync(
-                    cacheKey,
-                    result.Value!,
-                    TimeSpan.FromMinutes(_durationInMins)
-                );
+                try
+                {
+                    await cacheService.SetAsync(
+                        cacheKey,
+                        result.Value!,
+                        TimeSpan.FromMinutes(_durationInMins)
+                    );
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Cache write failed for {CacheKey}", cacheKey);
+                }
             }
         }
 

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using ECommerce.Domain.Entities.OrderModule;
 using ECommerce.Shared.DTOs.OrderDTOs;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 
 namespace ECommerce.Services.MappingProfiles
@@ -13,10 +14,15 @@ namespace ECommerce.Services.MappingProfiles
     internal class OrderItemPictureUrlResolver : IValueResolver<OrderItem, OrderItemDTO, string>
     {
         private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public OrderItemPictureUrlResolver(IConfiguration configuration)
+        public OrderItemPictureUrlResolver(
+            IConfiguration configuration,
+            IHttpContextAccessor httpContextAccessor
+        )
         {
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public string Resolve(
@@ -35,12 +41,23 @@ namespace ECommerce.Services.MappingProfiles
             )
                 return source.Product.PictureUrl;
 
-            var BaseUrl = _configuration.GetSection("URLs")["BaseUrl"];
+            //Fall back to the host actually serving the request, so a deployment that
+            //forgets to override URLs:BaseUrl does not hand clients localhost image links.
+            var baseUrl = _configuration.GetSection("URLs")["BaseUrl"];
 
-            if (string.IsNullOrEmpty(BaseUrl))
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                var request = _httpContextAccessor.HttpContext?.Request;
+                baseUrl =
+                    request is null
+                        ? null
+                        : $"{request.Scheme}://{request.Host}{request.PathBase}";
+            }
+
+            if (string.IsNullOrWhiteSpace(baseUrl))
                 return string.Empty;
 
-            return $"{BaseUrl}{source.Product.PictureUrl}";
+            return $"{baseUrl.TrimEnd('/')}/{source.Product.PictureUrl.TrimStart('/')}";
         }
     }
 }
