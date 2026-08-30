@@ -85,7 +85,16 @@ namespace ECommerce.Services
             var OrderExistWithThisPaymentIntent = await orderRepo.GetByIdAsync(orderSpec);
 
             if (OrderExistWithThisPaymentIntent is not null)
+            {
+                //Never discard an order whose payment has already been processed
+                if (OrderExistWithThisPaymentIntent.Status != OrderStatus.Pending)
+                    return Error.Validation(
+                        "Order.AlreadyProcessed",
+                        "This payment intent already has a processed order."
+                    );
+
                 orderRepo.Delete(OrderExistWithThisPaymentIntent);
+            }
 
             //6-Creates a new Order with all relevant details.
             var order = new Order()
@@ -102,7 +111,10 @@ namespace ECommerce.Services
 
             bool result = await _unitOfWork.SaveChangesAsync() > 0;
             if (!result)
-                Error.Faliure("Order.Faliure", "There was a problem while creating the order");
+                return Error.Faliure(
+                    "Order.Faliure",
+                    "There was a problem while creating the order"
+                );
 
             //7-Returns a DTO containing the full order details to the client,
             //including Id[OrderId], UserEmail,

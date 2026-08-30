@@ -15,6 +15,7 @@ using ECommerce.Services.MappingProfiles;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -72,15 +73,37 @@ namespace ECommerce.API
                 );
             });
 
+            //Origins come from configuration (Cors:AllowedOrigins) so production never
+            //falls back to AllowAnyOrigin, which would let any site call the API with credentials.
+            var allowedOrigins =
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy(
-                    "DevelopmentPolicy",
-                    builder =>
+                    "DefaultPolicy",
+                    policy =>
                     {
-                        builder.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod();
+                        policy
+                            .WithOrigins(allowedOrigins)
+                            .AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowCredentials();
                     }
                 );
+            });
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.AddFixedWindowLimiter(
+                    "auth",
+                    o =>
+                    {
+                        o.Window = TimeSpan.FromMinutes(1);
+                        o.PermitLimit = 10;
+                    }
+                );
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             });
 
             builder.Services.AddDbContext<StoreDbContext>(options =>
@@ -95,7 +118,10 @@ namespace ECommerce.API
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            builder.Services.AddAutoMapper(typeof(ServiceAssemblyReference).Assembly);
+            //AutoMapper 15+ takes a configuration action instead of a bare assembly list.
+            builder.Services.AddAutoMapper(cfg =>
+                cfg.AddMaps(typeof(ServiceAssemblyReference).Assembly)
+            );
 
             builder.Services.AddScoped<IProductService, ProductService>();
 
@@ -129,9 +155,21 @@ namespace ECommerce.API
             //    .AddEntityFrameworkStores<StoreIdentityDbContext>();
 
             builder
-                .Services.AddIdentityCore<ApplicationUser>()
+                .Services.AddIdentityCore<ApplicationUser>(options =>
+                {
+                    //Every lookup in the app is by email, so duplicates must be impossible.
+                    options.User.RequireUniqueEmail = true;
+
+                    options.Password.RequiredLength = 8;
+
+                    //Without lockout, the login endpoint can be brute forced indefinitely.
+                    options.Lockout.MaxFailedAccessAttempts = 5;
+                    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                    options.Lockout.AllowedForNewUsers = true;
+                })
                 .AddRoles<IdentityRole>()
-                .AddEntityFrameworkStores<StoreIdentityDbContext>();
+                .AddEntityFrameworkStores<StoreIdentityDbContext>()
+                .AddSignInManager();
 
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
@@ -143,16 +181,26 @@ namespace ECommerce.API
                 })
                 .AddJwtBearer(options =>
                 {
+                    //Fail fast at startup rather than with an obscure NullReference on the
+                    //first request if the signing key was never supplied.
+                    var secretKey =
+                        builder.Configuration["JWTOptions:SecretKey"]
+                        ?? throw new InvalidOperationException(
+                            "JWTOptions:SecretKey is not configured. "
+                                + "Set it via environment variable JWTOptions__SecretKey or user secrets."
+                        );
+
                     options.SaveToken = true;
                     options.TokenValidationParameters = new TokenValidationParameters()
                     {
                         ValidateIssuer = true,
                         ValidateAudience = true,
                         ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
                         ValidIssuer = builder.Configuration["JWTOptions:Issuer"],
                         ValidAudience = builder.Configuration["JWTOptions:Audience"],
                         IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(builder.Configuration["JWTOptions:SecretKey"]!)
+                            Encoding.UTF8.GetBytes(secretKey)
                         ),
                     };
                 });
@@ -169,9 +217,14 @@ namespace ECommerce.API
 
             
 
+            //Schema migrations must run in every environment, otherwise a production
+            //deployment starts against an unmigrated database.
+            await app.MigrateDataBaseAsync();
+            await app.MigratIdentityeDataBaseAsync();
+
+            //Demo data (including accounts with well-known passwords) stays in Development only.
             if (app.Environment.IsDevelopment())
             {
-                await app.MigrateDataBaseAsync();
                 await app.SeedDataAsync();
                 await app.SeedIdentityDataAsync();
             }
@@ -230,7 +283,9 @@ namespace ECommerce.API
 
             app.UseStaticFiles();
             app.UseHttpsRedirection();
-            app.UseCors("DevelopmentPolicy");
+            app.UseCors("DefaultPolicy");
+
+            app.UseRateLimiter();
 
             app.UseAuthentication();
             app.UseAuthorization();

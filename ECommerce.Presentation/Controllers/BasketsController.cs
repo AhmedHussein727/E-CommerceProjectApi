@@ -20,11 +20,18 @@ namespace ECommerce.Presentation.Controllers
             _basketService = basketService;
         }
 
+        //Basket ids are supplied by the client. Requiring a well-formed GUID keeps callers
+        //from probing for other customers' baskets with guessable ids such as "1" or "basket01".
+        private const string InvalidBasketId = "Invalid basket id.";
+
         //GET:BaseUrl/api/Baskets?id=Basket01
 
         [HttpGet]
         public async Task<ActionResult<BasketDTO>> GetBasket(string basketId)
         {
+            if (!Guid.TryParse(basketId, out _))
+                return BadRequest(InvalidBasketId);
+
             var basket = await _basketService.GetBasketAsync(basketId);
             return Ok(basket);
         }
@@ -33,6 +40,9 @@ namespace ECommerce.Presentation.Controllers
         [HttpPost]
         public async Task<ActionResult<BasketDTO>> CreateOrUpdateBasket(BasketDTO basket)
         {
+            if (!Guid.TryParse(basket.Id, out _))
+                return BadRequest(InvalidBasketId);
+
             var Basket = await _basketService.CreateOrUpdateBasketAsync(basket);
             return Ok(Basket);
         }
@@ -42,6 +52,9 @@ namespace ECommerce.Presentation.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<bool>> DeleteBasket([FromRoute] string id)
         {
+            if (!Guid.TryParse(id, out _))
+                return BadRequest(InvalidBasketId);
+
             var result = await _basketService.DeleteBasketAsync(id);
             return Ok(result);
         }

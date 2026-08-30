@@ -5,18 +5,25 @@ using System.Text;
 using System.Threading.Tasks;
 using ECommerce.Services.Abstraction;
 using ECommerce.Shared.DTOs.BasketDTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Presentation.Controllers
 {
+    [Authorize]
     public class PaymentsController : ApiBaseController
     {
         private readonly IPaymentService _paymentService;
+        private readonly ILogger<PaymentsController> _logger;
 
-        public PaymentsController(IPaymentService paymentService)
+        public PaymentsController(
+            IPaymentService paymentService,
+            ILogger<PaymentsController> logger
+        )
         {
             _paymentService = paymentService;
+            _logger = logger;
         }
 
         // POST: baseUrl/api/payments/{basketId}
@@ -24,10 +31,16 @@ namespace ECommerce.Presentation.Controllers
         [HttpPost("{BasketId}")]
         public async Task<ActionResult<BasketDTO>> CreateOrUpdatePaymentIntent(string BasketId)
         {
+            if (!Guid.TryParse(BasketId, out _))
+                return BadRequest("Invalid basket id.");
+
             var result = await _paymentService.CreateOrUpdatePaymentIntentAsync(BasketId);
             return HandleResult(result);
         }
 
+        //Stripe calls this endpoint directly, so it cannot carry a user token.
+        //It is authenticated instead by verifying the Stripe-Signature header.
+        [AllowAnonymous]
         [HttpPost("webhook")]
         public async Task<IActionResult> WebHook()
         {
@@ -38,11 +51,11 @@ namespace ECommerce.Presentation.Controllers
 
                 await _paymentService.UpdateOrderPaymentStatus(json, stripeSignature!);
 
-                return Ok(); 
+                return Ok();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Webhook Error: " + ex.Message);
+                _logger.LogError(ex, "Stripe webhook processing failed");
                 return BadRequest();
             }
         }

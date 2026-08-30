@@ -78,7 +78,13 @@ namespace ECommerce.Services
                 item.PictureUrl = product.PictureUrl;
             }
 
-            long amount = (long)(basket.Items.Sum(I => I.Quantity * I.Price) * 100); //1 dollar=>100 cents
+            //Charge the items subtotal PLUS the shipping price, rounded to the nearest cent
+            var subTotal = basket.Items.Sum(I => I.Quantity * I.Price);
+            long amount = (long)
+                Math.Round(
+                    (subTotal + basket.ShippingPrice) * 100,
+                    MidpointRounding.AwayFromZero
+                ); //1 dollar=>100 cents
 
             //4-Create or update payment intent with Stripe API
 

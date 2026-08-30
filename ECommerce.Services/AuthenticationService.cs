@@ -21,16 +21,19 @@ namespace ECommerce.Services
     public class AuthenticationService : IAuthenticationService
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
 
         public AuthenticationService(
             UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
             IConfiguration configuration,
             IMapper mapper
         )
         {
             _userManager = userManager;
+            _signInManager = signInManager;
             _configuration = configuration;
             _mapper = mapper;
         }
@@ -76,8 +79,21 @@ namespace ECommerce.Services
             if (user is null)
                 return Error.InvalidCredintals("User.InvalidCredintals");
 
-            var IsPasswordValid = await _userManager.CheckPasswordAsync(user, loginDTO.Password);
-            if (!IsPasswordValid)
+            //CheckPasswordSignInAsync honours the lockout policy; UserManager.CheckPasswordAsync
+            //bypasses it entirely and leaves the endpoint open to brute force.
+            var signInResult = await _signInManager.CheckPasswordSignInAsync(
+                user,
+                loginDTO.Password,
+                lockoutOnFailure: true
+            );
+
+            if (signInResult.IsLockedOut)
+                return Error.Validation(
+                    "User.LockedOut",
+                    "Account temporarily locked due to repeated failed sign-in attempts."
+                );
+
+            if (!signInResult.Succeeded)
                 return Error.InvalidCredintals("User.InvalidCredintals");
 
             var token = await CreateTokenAsync(user);

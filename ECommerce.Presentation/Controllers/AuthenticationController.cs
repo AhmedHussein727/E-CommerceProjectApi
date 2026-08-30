@@ -11,9 +11,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Presentation.Controllers
 {
+    //Throttles credential-guessing and account-enumeration against the auth endpoints.
+    [EnableRateLimiting("auth")]
     public class AuthenticationController : ApiBaseController
     {
         private readonly IAuthenticationService _authenticationService;
