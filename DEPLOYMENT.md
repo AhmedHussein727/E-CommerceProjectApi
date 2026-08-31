@@ -9,17 +9,19 @@ and deploys as static files.
 
 | Piece | Service | Free tier |
 | --- | --- | --- |
-| API | [Render](https://render.com) web service (Docker) | Yes — sleeps after 15 min idle |
-| Database | [Neon](https://neon.com) PostgreSQL | 100 CU-hours + 0.5 GB per project. Cannot incur charges — it hard-stops rather than billing overage |
+| API | [MonsterASP.NET](https://www.monsterasp.net) free plan (IIS, EU datacenter) | 5 GB disk, 256 MB RAM, free subdomain, no card |
+| Database | MonsterASP MSSQL | One database, 1 GB. Both DbContexts share it |
 | Cache | [Upstash Redis](https://upstash.com) | 10k commands/day |
 | Client | [Netlify](https://netlify.com) | Yes |
 
-Neon needs no payment method and cannot produce a bill: when the monthly
-allowance runs out the compute is suspended until the next period. Its compute
-also auto-suspends after five minutes idle and resumes on the next connection.
+No payment method is involved anywhere in this stack.
 
-Render's free instances cold-start too: the first request after an idle period
-takes roughly a minute while the container boots and migrations run.
+The free plan allows a single database, so `DefaultConnection` and
+`IdentityConnection` point at the same one. The identity context writes to
+`__EFMigrationsHistory_Identity` so the two do not overwrite each other's
+migration records. Their tables do not otherwise collide.
+
+The EU datacenter is in Germany, which is also where the cache should live.
 
 ## Required configuration
 
@@ -29,8 +31,8 @@ Set these as environment variables on the host. The double underscore is how
 
 | Variable | Value |
 | --- | --- |
-| `ConnectionStrings__DefaultConnection` | Npgsql connection string for the store database, e.g. `Host=...neon.tech;Database=store;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true` |
-| `ConnectionStrings__IdentityConnection` | Npgsql connection string for the identity database |
+| `ConnectionStrings__DefaultConnection` | SQL Server connection string, e.g. `Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True` |
+| `ConnectionStrings__IdentityConnection` | Same value as above on a single-database plan |
 | `ConnectionStrings__RedisConnection` | `<host>:<port>,password=<password>,ssl=True,abortConnect=false` |
 | `JWTOptions__SecretKey` | 32+ random bytes, base64. Generate with `openssl rand -base64 48` |
 | `JWTOptions__Issuer` | Public URL of the API |
@@ -48,14 +50,23 @@ failing later with an obscure error.
 
 ## Deploying the API
 
+On MonsterASP (IIS), publish and upload the output over FTP:
+
+```bash
+dotnet publish ECommerce.API/ECommerce.Web.csproj -c Release -o ./publish
+```
+
+Upload the contents of `./publish` to the site root. `web.config` is generated
+by publish and wires up the ASP.NET Core module. Set the configuration values
+by uploading an `appsettings.Production.json` alongside it — that filename is
+git-ignored, so the secrets never reach the repository.
+
+For any container platform instead:
+
 ```bash
 docker build -t ecommerce-api .
 docker run -p 8080:8080 --env-file .env ecommerce-api
 ```
-
-On Render: create a new Web Service, point it at this repository, choose the
-Docker runtime, and add the variables above. The container listens on the port
-given by `ASPNETCORE_HTTP_PORTS` (8080 by default).
 
 Schema migrations run automatically at startup for both databases. The product
 catalog is seeded on first run. Demo user accounts are seeded only when
@@ -93,5 +104,7 @@ expiry and any CVC.
 - AutoMapper 16.2.0 logs a licensing warning at startup. Its licence permits
   development and testing; commercial production use requires a licence key.
 - There is no automated test suite.
-- The database is PostgreSQL (Npgsql). Timestamps are stored as `timestamptz`,
-  so any `DateTimeOffset` written must be UTC.
+- `Order.OrderDate` is written as UTC. Keep it that way if the provider ever
+  changes again; PostgreSQL rejects a non-UTC `DateTimeOffset` outright.
+- The Dockerfile still builds and runs. It is unused on IIS shared hosting but
+  keeps the app deployable to any container platform.

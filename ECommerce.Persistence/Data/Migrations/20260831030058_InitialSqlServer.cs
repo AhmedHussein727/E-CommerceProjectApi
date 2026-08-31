@@ -1,13 +1,12 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace ECommerce.Persistence.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialPostgres : Migration
+    public partial class InitialSqlServer : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,12 +15,12 @@ namespace ECommerce.Persistence.Data.Migrations
                 name: "DeliveryMethod",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ShortName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Description = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    DeliveryTime = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Price = table.Column<decimal>(type: "numeric(8,2)", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ShortName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    DeliveryTime = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(8,2)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -32,9 +31,9 @@ namespace ECommerce.Persistence.Data.Migrations
                 name: "ProductBrands",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "text", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -45,9 +44,9 @@ namespace ECommerce.Persistence.Data.Migrations
                 name: "ProductTypes",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "text", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -58,18 +57,18 @@ namespace ECommerce.Persistence.Data.Migrations
                 name: "Order",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserEmail = table.Column<string>(type: "text", nullable: false),
-                    OrderDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    PaymentIntentId = table.Column<string>(type: "text", nullable: false),
-                    Address_FirstName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Address_LastName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Address_Street = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Address_City = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Address_Country = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    DeliveryMethodId = table.Column<int>(type: "integer", nullable: false),
-                    SubTotal = table.Column<decimal>(type: "numeric(8,2)", nullable: false)
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserEmail = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    OrderDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    PaymentIntentId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Address_FirstName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Address_LastName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Address_Street = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Address_City = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Address_Country = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    DeliveryMethodId = table.Column<int>(type: "int", nullable: false),
+                    SubTotal = table.Column<decimal>(type: "decimal(8,2)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -86,14 +85,14 @@ namespace ECommerce.Persistence.Data.Migrations
                 name: "Products",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    PictureUrl = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    ProductBrandId = table.Column<int>(type: "integer", nullable: false),
-                    ProductTypeId = table.Column<int>(type: "integer", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    PictureUrl = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ProductBrandId = table.Column<int>(type: "int", nullable: false),
+                    ProductTypeId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -116,14 +115,14 @@ namespace ECommerce.Persistence.Data.Migrations
                 name: "OrderItem",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Product_ProductId = table.Column<int>(type: "integer", nullable: false),
-                    Product_ProductName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Product_PictureUrl = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Price = table.Column<decimal>(type: "numeric(8,2)", nullable: false),
-                    Quantity = table.Column<int>(type: "integer", nullable: false),
-                    OrderId = table.Column<Guid>(type: "uuid", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Product_ProductId = table.Column<int>(type: "int", nullable: false),
+                    Product_ProductName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Product_PictureUrl = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(8,2)", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    OrderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {

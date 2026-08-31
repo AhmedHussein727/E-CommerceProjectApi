@@ -109,8 +109,9 @@ namespace ECommerce.API
 
             builder.Services.AddDbContext<StoreDbContext>(options =>
             {
-                options.UseNpgsql(
-                    builder.Configuration.GetConnectionString("DefaultConnection")
+                options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("DefaultConnection"),
+                    sql => sql.EnableRetryOnFailure()
                 );
             });
 
@@ -161,8 +162,17 @@ namespace ECommerce.API
 
             builder.Services.AddDbContext<StoreIdentityDbContext>(Options =>
             {
-                Options.UseNpgsql(
-                    builder.Configuration.GetConnectionString("IdentityConnection")
+                //IdentityConnection may point at the same database as DefaultConnection -
+                //shared hosting plans often allow only one. Giving this context its own
+                //migrations history table keeps the two from overwriting each other's
+                //records, and is harmless when they do have separate databases.
+                Options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("IdentityConnection"),
+                    sql =>
+                    {
+                        sql.MigrationsHistoryTable("__EFMigrationsHistory_Identity");
+                        sql.EnableRetryOnFailure();
+                    }
                 );
             });
 
