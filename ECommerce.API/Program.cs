@@ -109,7 +109,7 @@ namespace ECommerce.API
 
             builder.Services.AddDbContext<StoreDbContext>(options =>
             {
-                options.UseSqlServer(
+                options.UseNpgsql(
                     builder.Configuration.GetConnectionString("DefaultConnection")
                 );
             });
@@ -161,7 +161,7 @@ namespace ECommerce.API
 
             builder.Services.AddDbContext<StoreIdentityDbContext>(Options =>
             {
-                Options.UseSqlServer(
+                Options.UseNpgsql(
                     builder.Configuration.GetConnectionString("IdentityConnection")
                 );
             });

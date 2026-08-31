@@ -15,6 +15,15 @@ namespace ECommerce.Persistence.Data.Configurations
         {
             builder.Property(X => X.SubTotal).HasColumnType("decimal(8,2)");
 
+            //OrderItem has no navigation back to Order, so EF infers an optional foreign key
+            //and will not cascade. Deleting an order then fails on the FK from OrderItem.
+            //An order item has no meaning without its order, so make it required and cascading.
+            builder
+                .HasMany(X => X.Items)
+                .WithOne()
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.OwnsOne(
                 X => X.Address,
                 OE =>

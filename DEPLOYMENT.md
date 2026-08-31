@@ -10,14 +10,16 @@ and deploys as static files.
 | Piece | Service | Free tier |
 | --- | --- | --- |
 | API | [Render](https://render.com) web service (Docker) | Yes — sleeps after 15 min idle |
-| Database | [Azure SQL Database](https://azure.microsoft.com/products/azure-sql/database) free offer | 100k vCore-seconds/month, 32 GB |
+| Database | [Neon](https://neon.com) PostgreSQL | 100 CU-hours + 0.5 GB per project. Cannot incur charges — it hard-stops rather than billing overage |
 | Cache | [Upstash Redis](https://upstash.com) | 10k commands/day |
 | Client | [Netlify](https://netlify.com) | Yes |
 
-Azure SQL keeps the existing SQL Server provider, so no code or migration
-changes are needed. Render's free instances cold-start: the first request after
-an idle period takes roughly a minute while the container boots and migrations
-run.
+Neon needs no payment method and cannot produce a bill: when the monthly
+allowance runs out the compute is suspended until the next period. Its compute
+also auto-suspends after five minutes idle and resumes on the next connection.
+
+Render's free instances cold-start too: the first request after an idle period
+takes roughly a minute while the container boots and migrations run.
 
 ## Required configuration
 
@@ -27,8 +29,8 @@ Set these as environment variables on the host. The double underscore is how
 
 | Variable | Value |
 | --- | --- |
-| `ConnectionStrings__DefaultConnection` | Azure SQL connection string for the store database |
-| `ConnectionStrings__IdentityConnection` | Azure SQL connection string for the identity database |
+| `ConnectionStrings__DefaultConnection` | Npgsql connection string for the store database, e.g. `Host=...neon.tech;Database=store;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true` |
+| `ConnectionStrings__IdentityConnection` | Npgsql connection string for the identity database |
 | `ConnectionStrings__RedisConnection` | `<host>:<port>,password=<password>,ssl=True,abortConnect=false` |
 | `JWTOptions__SecretKey` | 32+ random bytes, base64. Generate with `openssl rand -base64 48` |
 | `JWTOptions__Issuer` | Public URL of the API |
@@ -91,3 +93,5 @@ expiry and any CVC.
 - AutoMapper 16.2.0 logs a licensing warning at startup. Its licence permits
   development and testing; commercial production use requires a licence key.
 - There is no automated test suite.
+- The database is PostgreSQL (Npgsql). Timestamps are stored as `timestamptz`,
+  so any `DateTimeOffset` written must be UTC.

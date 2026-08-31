@@ -10,7 +10,7 @@ namespace ECommerce.Domain.Entities.OrderModule
     {
         public string UserEmail { get; set; } = default!;
 
-        public DateTimeOffset OrderDate { get; set; } = DateTimeOffset.Now;
+        public DateTimeOffset OrderDate { get; set; } = DateTimeOffset.UtcNow;
 
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
