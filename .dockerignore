@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+**/node_modules/
+.git/
+.github/
+**/appsettings.*.local.json
+**/appsettings.Production.json
+.env
+Dockerfile
+.dockerignore

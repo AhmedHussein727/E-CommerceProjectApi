@@ -238,10 +238,13 @@ namespace ECommerce.API
             await app.MigrateDataBaseAsync();
             await app.MigratIdentityeDataBaseAsync();
 
-            //Demo data (including accounts with well-known passwords) stays in Development only.
+            //The catalog is reference data, not a secret: seed it everywhere, otherwise a
+            //deployed instance serves an empty shop.
+            await app.SeedDataAsync();
+
+            //Demo accounts use a well-known password, so they stay in Development only.
             if (app.Environment.IsDevelopment())
             {
-                await app.SeedDataAsync();
                 await app.SeedIdentityDataAsync();
             }
 
@@ -309,6 +312,27 @@ namespace ECommerce.API
             app.UseAuthorization();
 
             app.MapControllers();
+
+            //Liveness probe for the hosting platform.
+            app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
+                .AllowAnonymous();
+
+            //When the Angular bundle is published into wwwroot this app also serves the SPA.
+            //Without the fallback, refreshing a client-side route such as /shop/5 returns 404.
+            //Requests under /api keep their normal 404 so clients still see API errors.
+            app.MapFallback(
+                (HttpContext context) =>
+                {
+                    if (context.Request.Path.StartsWithSegments("/api"))
+                        return Results.NotFound();
+
+                    var indexPath = Path.Combine(app.Environment.WebRootPath ?? "", "index.html");
+
+                    return File.Exists(indexPath)
+                        ? Results.File(indexPath, "text/html")
+                        : Results.NotFound();
+                }
+            );
             #endregion
 
             await app.RunAsync(); 

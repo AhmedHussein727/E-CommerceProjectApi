@@ -15,4 +15,13 @@
     <ProjectReference Include="..\ECommerce.Services\ECommerce.Services.csproj" />
   </ItemGroup>
 
+  <!-- Seed data must travel with the build output; the source tree does not exist
+       on a deployed host. -->
+  <ItemGroup>
+    <Content Include="Data\DataSeed\JsonFiles\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>DataSeed\%(Filename)%(Extension)</TargetPath>
+    </Content>
+  </ItemGroup>
+
 </Project>

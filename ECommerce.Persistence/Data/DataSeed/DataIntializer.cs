@@ -10,16 +10,19 @@ using ECommerce.Domain.Entities.OrderModule;
 using ECommerce.Domain.Entities.ProductModule;
 using ECommerce.Persistence.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Persistence.Data.DataSeed
 {
     public class DataIntializer : IDataIntializer
     {
         private readonly StoreDbContext _dbContext;
+        private readonly ILogger<DataIntializer> _logger;
 
-        public DataIntializer(StoreDbContext dbContext)
+        public DataIntializer(StoreDbContext dbContext, ILogger<DataIntializer> logger)
         {
             _dbContext = dbContext;
+            _logger = logger;
         }
 
         public async Task IntializeAsync()
@@ -62,16 +65,17 @@ namespace ECommerce.Persistence.Data.DataSeed
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error occured during data intialization: {ex}");
+                _logger.LogError(ex, "Catalog seeding failed - the store will start empty");
             }
         }
 
         private async Task SeedDataFromJson<T, TKey>(string fileName, DbSet<T> dbset)
             where T : BaseEntity<TKey>
         {
-            //C:\Users\Khale\Documents\Desktop\Route Work\C44\Sessions\08-Asp.Net Web API\Online Project\ECommerce.Online.API\ECommerce.Persistence\Data\DataSeed\JsonFiles\brands.json
-
-            var filePath = @"..\ECommerce.Persistence\Data\DataSeed\JsonFiles\" + fileName;
+            //Resolve against the deployed application directory, not the source tree.
+            //Path.Combine also keeps this working on Linux, where a backslash is a
+            //legal filename character rather than a separator.
+            var filePath = Path.Combine(AppContext.BaseDirectory, "DataSeed", fileName);
 
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("Json file not found", filePath);
@@ -94,7 +98,7 @@ namespace ECommerce.Persistence.Data.DataSeed
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error while reading data from Json {ex} ");
+                _logger.LogError(ex, "Failed to read seed data from {FileName}", fileName);
             }
         }
     }
